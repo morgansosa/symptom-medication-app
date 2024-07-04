@@ -35,7 +35,7 @@ router.get('/suggestions', auth, async (req, res) => {
   try {
     const response = await axios.get('https://api.fda.gov/drug/label.json', {
       params: {
-        search: `openfda.generic_name:"${query}*" OR openfda.brand_name:"${query}*"`,
+        search: `openfda.generic_name:*${query}* OR openfda.brand_name:*${query}* OR openfda.generic_name:*${query}~ OR openfda.brand_name:*${query}~`,
         limit: 10
       }
     });
@@ -129,6 +129,40 @@ router.delete('/:id', auth, async (req, res) => {
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
+  }
+});
+
+// Set reminder time for a medication
+router.put('/set-reminder/:id', auth, async (req, res) => {
+  const { reminderTime } = req.body;
+  try {
+    const medication = await Medication.findById(req.params.id);
+    if (!medication) {
+      return res.status(404).json({ msg: 'Medication not found' });
+    }
+    medication.reminderTime = reminderTime;
+    await medication.save();
+    res.json(medication);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
+
+// Mark medication as taken
+router.put('/taken/:id', auth, async (req, res) => {
+  try {
+    const medication = await Medication.findById(req.params.id);
+    if (!medication) {
+      return res.status(404).json({ msg: 'Medication not found' });
+    }
+    medication.quantity -= 1;
+    medication.takenDates.push(new Date());
+    await medication.save();
+    res.json(medication);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
   }
 });
 

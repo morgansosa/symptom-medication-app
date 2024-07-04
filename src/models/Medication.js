@@ -12,7 +12,8 @@ const MedicationSchema = new mongoose.Schema({
   reminders: { type: Boolean, default: false },
   quantity: { type: Number, required: true },
   refills: { type: Number, required: true },
-  takenDates: [{ type: Date }]
+  takenDates: [{ type: Date }],
+  reminderTime: { type: String }
 });
 
 module.exports = mongoose.model('Medication', MedicationSchema);
