@@ -4,6 +4,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const Symptom = require('../models/Symptom');
 
+
 // Log Symptom
 router.post('/', auth, async (req, res) => {
   const { description, severity } = req.body;
