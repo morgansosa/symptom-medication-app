@@ -60,6 +60,7 @@ router.post('/', auth, async (req, res) => {
   try {
     const medicationInfo = await fetchMedicationInfo(name);
     const newMedication = new Medication({
+      user: req.user.id,
       name: medicationInfo.length ? medicationInfo[0].name : name,
       dosage,
       frequency,
@@ -82,7 +83,7 @@ router.post('/', auth, async (req, res) => {
 // Fetch all medications
 router.get('/', auth, async (req, res) => {
   try {
-    const medications = await Medication.find();
+    const medications = await Medication.find({ user: req.user.id });
     res.json(medications);
   } catch (err) {
     console.error(err.message);
@@ -99,6 +100,9 @@ router.put('/:id', auth, async (req, res) => {
 
     if (!medication) {
       return res.status(404).json({ msg: 'Medication not found' });
+    }
+    if (medication.user.toString() !== req.user.id) {
+      return res.status(401).json({ msg: 'Not authorized' });
     }
 
     medication = await Medication.findByIdAndUpdate(
@@ -122,8 +126,11 @@ router.delete('/:id', auth, async (req, res) => {
     if (!medication) {
       return res.status(404).json({ msg: 'Medication not found' });
     }
+    if (medication.user.toString() !== req.user.id) {
+      return res.status(401).json({ msg: 'Not authorized' });
+    }
 
-    await Medication.findByIdAndRemove(req.params.id);
+    await Medication.findByIdAndDelete(req.params.id);
 
     res.json({ msg: 'Medication removed' });
   } catch (err) {
@@ -140,6 +147,9 @@ router.put('/set-reminder/:id', auth, async (req, res) => {
     if (!medication) {
       return res.status(404).json({ msg: 'Medication not found' });
     }
+    if (medication.user.toString() !== req.user.id) {
+      return res.status(401).json({ msg: 'Not authorized' });
+    }
     medication.reminderTime = reminderTime;
     await medication.save();
     res.json(medication);
@@ -155,6 +165,9 @@ router.put('/taken/:id', auth, async (req, res) => {
     const medication = await Medication.findById(req.params.id);
     if (!medication) {
       return res.status(404).json({ msg: 'Medication not found' });
+    }
+    if (medication.user.toString() !== req.user.id) {
+      return res.status(401).json({ msg: 'Not authorized' });
     }
     medication.quantity -= 1;
     medication.takenDates.push(new Date());

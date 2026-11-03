@@ -1,146 +1,85 @@
+# Symptom & Medication Tracker
 
-### README.md
+A small full-stack app for logging symptoms, managing medications, and (eventually) generating a summary to bring to a doctor's appointment. Built as a personal project to learn how authentication, document databases, and third-party API integration actually work end to end.
 
-# Symptom & Medication Management App
+**Stack:** Node.js, Express, MongoDB (Mongoose), JSON Web Tokens, bcrypt, React, Axios. Medication lookup uses the [openFDA drug label API](https://open.fda.gov/apis/drug/label/).
 
-This project is a work-in-progress Symptom & Medication Management application built with Node.js, Express, MongoDB, and React. The goal of the application is to allow users to log symptoms, manage medications, and generate summaries for doctor's appointments.
+## What's built
 
-## Table of Contents
+**API** (`src/`)
 
-- [Overview](#overview)
-- [Tech Stack](#tech-stack)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Folder Structure](#folder-structure)
-- [Contributing](#contributing)
-- [License](#license)
+- **Auth:** register and login with bcrypt-hashed passwords; JWT issued on success and verified by middleware on every protected route (`x-auth-token` header).
+- **Users:** get and update the current user's profile; duplicate-email checks on register and update.
+- **Symptoms:** create, list, update, delete. Every record is scoped to the owning user, and update/delete verify ownership.
+- **Medications:** create, list, update, delete, plus set a reminder time and "mark as taken" (logs a timestamp and decrements remaining quantity). Scoped to the owning user like symptoms.
+- **Medication search:** `GET /api/medications/suggestions?query=...` proxies openFDA with wildcard and fuzzy (`~`) matching, so users can find a medication without spelling it exactly. On create, the entered name is normalized against openFDA's brand/generic name.
 
-## Overview
+**Client** (`client/`)
 
-### Current Status
+React app with register/login, protected routes, a profile page, symptom log and list, medication add/list with inline editing, reminders, and a notification bar.
 
-The project is currently in the early stages of development. Basic setup for the backend and frontend has been completed. The following features are planned but not yet implemented:
+## Not built (and probably won't be)
 
-- User registration and authentication
-- Log symptoms and manage medications
-- Generate summaries for doctor's appointments
-- Data visualization for symptoms and medication adherence
+- The analytics layer this was originally for: grouping free-text symptoms into clusters with an LLM and producing a plain-language summary ("X occurred N times in the last 3 months, correlated with Y").
+- Drug-interaction checks.
+- Tests.
+- Deployment. It runs locally against a MongoDB instance.
 
-## Tech Stack
+Last touched summer 2024. The API is in a usable state; the client works against it; the interesting part was never started.
 
-- **Frontend:** React, React Router, Axios
-- **Backend:** Node.js, Express, Mongoose
-- **Database:** MongoDB
-- **Version Control:** Git
+## Running it
 
-## Installation
+Requires Node.js and a MongoDB instance (local or Atlas).
 
-### Prerequisites
-
-- Node.js and npm installed
-- MongoDB instance (local or Atlas)
-
-### Backend Setup
-
-1. Clone the repository:
-
-    ```sh
-    git clone https://github.com/yourusername/symptom-medication-app.git
-    cd symptom-medication-app
-    ```
-
-2. Install backend dependencies:
-
-    ```sh
-    npm install
-    ```
-
-3. Set up environment variables:
-
-    Create a `.env` file in the root directory with the following content:
-
-    ```env
-    MONGO_URI=your_mongodb_connection_string
-    PORT=5000
-    ```
-
-4. Start the backend server:
-
-    ```sh
-    npm start
-    ```
-
-### Frontend Setup
-
-1. Navigate to the `client` directory:
-
-    ```sh
-    cd client
-    ```
-
-2. Install frontend dependencies:
-
-    ```sh
-    npm install
-    ```
-
-3. Start the frontend development server:
-
-    ```sh
-    npm start
-    ```
-
-## Usage
-
-- Open your browser and go to `http://localhost:3000` to view the application.
-- Note: The application is currently under development and may not have all features implemented yet.
-
-## Folder Structure
-
-```
-symptom-medication-app/
-│
-├── src/
-│   ├── server.js
-│   ├── models/
-│   │   ├── User.js
-│   │   └── Symptom.js
-│   ├── routes/
-│   │   ├── userRoutes.js
-│   │   └── symptomRoutes.js
-│   ├── controllers/
-│   │   ├── userController.js
-│   │   └── symptomController.js
-│   └── middleware/
-│       ├── authMiddleware.js
-│       └── errorMiddleware.js
-│
-├── client/
-│   ├── public/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── Home.js
-│   │   │   └── SymptomLog.js
-│   │   ├── App.js
-│   │   ├── index.js
-│   │   └── ...
-│   ├── package.json
-│   └── ...
-├── .env
-├── .gitignore
-├── package.json
-└── README.md
+```sh
+git clone https://github.com/morgansosa/symptom-medication-app.git
+cd symptom-medication-app
+npm install
 ```
 
-## Contributing
+Create `.env` in the project root:
 
-1. Fork the repository
-2. Create a new branch (`git checkout -b feature-branch`)
-3. Make your changes
-4. Commit your changes (`git commit -m 'Add new feature'`)
-5. Push to the branch (`git push origin feature-branch`)
-6. Open a pull request
+```env
+MONGO_URI=your_mongodb_connection_string
+JWT_SECRET=a_long_random_string
+PORT=5000
+```
+
+```sh
+npm start                 # API on http://localhost:5000
+cd client && npm install && npm start   # client on http://localhost:3000
+```
+
+## API summary
+
+| Method | Route | Auth | Purpose |
+|---|---|---|---|
+| POST | `/api/users/register` | no | create account, returns JWT |
+| POST | `/api/users/login` | no | returns JWT |
+| GET / PUT | `/api/users/me` | yes | read / update profile |
+| GET / POST | `/api/symptoms` | yes | list / log a symptom |
+| PUT / DELETE | `/api/symptoms/:id` | yes | update / delete (owner only) |
+| GET | `/api/medications/suggestions?query=` | yes | fuzzy name lookup via openFDA |
+| GET / POST | `/api/medications` | yes | list / add a medication |
+| PUT / DELETE | `/api/medications/:id` | yes | update / delete (owner only) |
+| PUT | `/api/medications/set-reminder/:id` | yes | set reminder time |
+| PUT | `/api/medications/taken/:id` | yes | log a dose |
+
+## Layout
+
+```
+src/
+  server.js
+  middleware/auth.js        JWT verification
+  models/                   User, Symptom, Medication
+  routes/                   users, symptoms, medications
+client/src/
+  components/               Login, Register, Profile, ProtectedRoute,
+                            LogSymptom, SymptomList, EditSymptom,
+                            AddMedication, MedicationList, Navbar, Notification
+  utils/axiosConfig.js
+```
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+MIT. See [LICENSE](LICENSE).
